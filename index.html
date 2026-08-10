@@ -20,65 +20,125 @@
       });
       window.castContext = context;
       document.querySelector("#status").textContent =
-        "Готово. Нажмите кнопку 'Подключить ТВ' и выберите телевизор";
+        "Готово. Нажмите 'Подключить ТВ' и выберите телевизор";
     };
   </script>
   <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
 
   <style>
+    /* --- Базовые переменные (тёмная тема по умолчанию) --- */
+    :root {
+      --bg: #101114;
+      --text: white;
+      --input-bg: #1d1f24;
+      --border: #444;
+      --btn-primary: #2979ff;
+      --btn-cast: #4285f4;
+      --btn-upload: #34a853;
+      --warning-bg: #332200;
+      --warning-text: #ffaa00;
+      --success-text: #66ff66;
+      --error-text: #ff4444;
+      --status-color: #aaa;
+    }
+
+    /* --- Светлая тема --- */
+    body.light {
+      --bg: #f0f2f5;
+      --text: #1a1a1a;
+      --input-bg: white;
+      --border: #ccc;
+      --btn-primary: #1976d2;
+      --btn-cast: #1a73e8;
+      --btn-upload: #2e7d32;
+      --warning-bg: #fff3cd;
+      --warning-text: #856404;
+      --success-text: #155724;
+      --error-text: #721c24;
+      --status-color: #333;
+    }
+
+    /* --- Тема для дальтоников (высокий контраст, различимые цвета) --- */
+    body.deuteranopia {
+      --bg: #000000;
+      --text: #ffffff;
+      --input-bg: #222222;
+      --border: #ffffff;
+      --btn-primary: #ffaa00;      /* жёлтый вместо синего */
+      --btn-cast: #00ddff;         /* яркий голубой */
+      --btn-upload: #ff8800;       /* оранжевый */
+      --warning-bg: #444400;
+      --warning-text: #ffff00;
+      --success-text: #88ff88;
+      --error-text: #ff8888;
+      --status-color: #dddddd;
+    }
+
+    /* --- Общие стили --- */
     * { box-sizing: border-box; }
     body {
       margin: 0;
       padding: 24px;
-      background: #101114;
-      color: white;
+      background: var(--bg);
+      color: var(--text);
       font-family: Arial, sans-serif;
+      transition: background 0.2s, color 0.2s;
     }
     main {
       width: min(600px, 100%);
       margin: auto;
     }
     h1 { margin-top: 0; }
-    input {
+    input, button, .file-upload-wrapper {
       width: 100%;
       padding: 14px;
       margin: 8px 0;
-      border: 1px solid #444;
+      border: 1px solid var(--border);
       border-radius: 8px;
-      background: #1d1f24;
-      color: white;
+      background: var(--input-bg);
+      color: var(--text);
       font-size: 16px;
+      transition: background 0.2s, border 0.2s, color 0.2s;
     }
     button {
-      width: 100%;
-      padding: 14px;
-      margin-top: 10px;
+      background: var(--btn-primary);
       border: 0;
-      border-radius: 8px;
-      background: #2979ff;
-      color: white;
-      font-size: 16px;
       cursor: pointer;
+      font-weight: bold;
     }
     button:active { opacity: 0.75; }
-
-    /* Кастомная кнопка Cast – большая и заметная */
-    #myCastButton {
-      background: #4285f4;
-      font-weight: bold;
-      letter-spacing: 0.5px;
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
     }
-    #myCastButton:active { background: #3367d6; }
+    #myCastButton { background: var(--btn-cast); }
+    #uploadButton { background: var(--btn-upload); }
 
-    /* Стандартная кнопка скрыта – используем кастомную */
-    google-cast-launcher {
-      display: none;
+    .file-upload-wrapper {
+      background: transparent;
+      border: 2px dashed var(--border);
+      text-align: center;
+      padding: 20px;
+      cursor: pointer;
     }
+    .file-upload-wrapper input[type="file"] { display: none; }
+    .file-upload-wrapper label { display: block; cursor: pointer; }
 
+    #file-warning {
+      font-size: 14px;
+      text-align: center;
+      margin: 4px 0 12px;
+      padding: 8px;
+      border-radius: 6px;
+      background: var(--warning-bg);
+      color: var(--warning-text);
+      transition: background 0.2s, color 0.2s;
+    }
     #status {
-      color: #aaa;
+      color: var(--status-color);
       text-align: center;
       line-height: 1.4;
+      transition: color 0.2s;
     }
     video {
       width: 100%;
@@ -86,6 +146,33 @@
       border-radius: 8px;
       background: black;
     }
+
+    /* --- Кнопки переключения тем --- */
+    .theme-switcher {
+      display: flex;
+      gap: 10px;
+      margin: 12px 0;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .theme-switcher button {
+      flex: 1;
+      min-width: 80px;
+      padding: 10px;
+      font-size: 14px;
+      background: var(--input-bg);
+      border: 2px solid var(--border);
+      color: var(--text);
+      border-radius: 30px;
+      cursor: pointer;
+      font-weight: normal;
+    }
+    .theme-switcher button.active {
+      border-color: var(--btn-primary);
+      background: var(--btn-primary);
+      color: white;
+    }
+    .theme-switcher button:active { opacity: 0.7; }
   </style>
 </head>
 
@@ -93,18 +180,30 @@
 <main>
   <h1>Видео на телевизор</h1>
 
-  <!-- Кастомная кнопка Cast вместо стандартной -->
-  <button id="myCastButton">📺 Подключить ТВ</button>
+  <!-- Переключатель тем -->
+  <div class="theme-switcher">
+    <button data-theme="dark" class="active">🌙 Ночь</button>
+    <button data-theme="light">☀️ День</button>
+    <button data-theme="deuteranopia">👁️ Дальтоник</button>
+  </div>
 
+  <button id="myCastButton">📺 Подключить ТВ</button>
   <p id="status">Загрузка Google Cast...</p>
+
+  <!-- Блок загрузки локального файла -->
+  <div class="file-upload-wrapper">
+    <label for="fileInput">📁 Выберите видео с телефона (до 100 МБ)</label>
+    <input type="file" id="fileInput" accept="video/*" />
+  </div>
+  <div id="file-warning">⚠️ Максимальный размер файла – 100 МБ (сервис file.io)</div>
+  <button id="uploadButton" disabled>⬆ Загрузить и получить ссылку</button>
 
   <input
     id="videoUrl"
     type="url"
-    placeholder="https://example.com/video.mp4"
-    value="https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+    placeholder="Сюда подставится ссылка после загрузки"
+    value=""
   />
-
   <input
     id="videoTitle"
     type="text"
@@ -116,37 +215,139 @@
   <button id="pauseButton">⏸ Пауза</button>
   <button id="stopButton">⏹ Остановить</button>
 
-  <!-- Локальный предпросмотр -->
   <video id="preview" controls></video>
 </main>
 
 <script>
+  // ---- DOM элементы ----
   const statusElement = document.querySelector("#status");
   const urlInput = document.querySelector("#videoUrl");
   const titleInput = document.querySelector("#videoTitle");
   const preview = document.querySelector("#preview");
+  const fileInput = document.querySelector("#fileInput");
+  const uploadButton = document.querySelector("#uploadButton");
+  const fileWarning = document.querySelector("#file-warning");
 
-  // ---- Кастомная кнопка подключения к ТВ ----
+  // ---- Управление темами ----
+  const themeButtons = document.querySelectorAll(".theme-switcher button");
+  const body = document.body;
+
+  function setTheme(theme) {
+    // Убираем все классы
+    body.classList.remove("light", "deuteranopia");
+    if (theme !== "dark") {
+      body.classList.add(theme);
+    }
+    // Сохраняем в localStorage
+    localStorage.setItem("theme", theme);
+    // Обновляем активную кнопку
+    themeButtons.forEach(btn => {
+      btn.classList.remove("active");
+      if (btn.dataset.theme === theme) {
+        btn.classList.add("active");
+      }
+    });
+  }
+
+  // Восстанавливаем сохранённую тему
+  const savedTheme = localStorage.getItem("theme") || "dark";
+  setTheme(savedTheme);
+
+  // Переключение по клику
+  themeButtons.forEach(btn => {
+    btn.addEventListener("click", function() {
+      setTheme(this.dataset.theme);
+    });
+  });
+
+  // ---- Подключение к ТВ ----
   document.getElementById("myCastButton").addEventListener("click", function() {
     if (!window.castContext) {
-      statusElement.textContent = "❌ Google Cast ещё не загружен, подождите...";
+      statusElement.textContent = "❌ Google Cast ещё не загружен";
       return;
     }
-    // Если уже есть сессия – используем её, иначе запрашиваем новую
-    let session = window.castContext.getCurrentSession();
+    const session = window.castContext.getCurrentSession();
     if (session) {
       statusElement.textContent = "✅ ТВ уже подключён";
       return;
     }
     window.castContext.requestSession()
-      .then(session => {
-        statusElement.textContent = "✅ Телевизор подключён! Теперь отправляйте видео.";
-        console.log("Сессия создана", session);
+      .then(() => {
+        statusElement.textContent = "✅ Телевизор подключён!";
       })
       .catch(err => {
-        statusElement.textContent = "❌ Ошибка подключения: " + err;
-        console.error(err);
+        statusElement.textContent = "❌ Ошибка: " + err;
       });
+  });
+
+  // ---- Проверка размера файла при выборе ----
+  fileInput.addEventListener("change", function() {
+    const file = this.files[0];
+    if (!file) {
+      uploadButton.disabled = true;
+      fileWarning.textContent = "⚠️ Максимальный размер файла – 100 МБ (сервис file.io)";
+      fileWarning.style.color = "var(--warning-text)";
+      return;
+    }
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+    if (file.size > 100 * 1024 * 1024) {
+      fileWarning.textContent = `❌ Файл слишком большой (${sizeMB} МБ). Максимум – 100 МБ.`;
+      fileWarning.style.color = "var(--error-text)";
+      uploadButton.disabled = true;
+      statusElement.textContent = "❌ Превышен лимит 100 МБ";
+    } else {
+      fileWarning.textContent = `✅ Файл выбран (${sizeMB} МБ). Нажмите «Загрузить».`;
+      fileWarning.style.color = "var(--success-text)";
+      uploadButton.disabled = false;
+      statusElement.textContent = "Файл готов к загрузке";
+    }
+  });
+
+  // ---- Загрузка файла на file.io ----
+  uploadButton.addEventListener("click", async () => {
+    const file = fileInput.files[0];
+    if (!file) {
+      statusElement.textContent = "❌ Сначала выберите файл";
+      return;
+    }
+    if (file.size > 100 * 1024 * 1024) {
+      statusElement.textContent = "❌ Файл превышает 100 МБ";
+      return;
+    }
+
+    statusElement.textContent = "⏳ Загрузка на сервер...";
+    uploadButton.disabled = true;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch("https://file.io", {
+        method: "POST",
+        body: formData
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        const fileUrl = data.link;
+        urlInput.value = fileUrl;
+        statusElement.textContent = "✅ Файл загружен! Ссылка вставлена.";
+        preview.src = fileUrl;
+        fileWarning.textContent = "✅ Готово! Можно отправлять на ТВ.";
+        fileWarning.style.color = "var(--success-text)";
+      } else {
+        statusElement.textContent = "❌ Ошибка загрузки: " + (data.message || "неизвестная");
+        fileWarning.textContent = "❌ Ошибка сервера, попробуйте позже";
+        fileWarning.style.color = "var(--error-text)";
+      }
+    } catch (error) {
+      console.error(error);
+      statusElement.textContent = "❌ Ошибка сети: " + error;
+      fileWarning.textContent = "❌ Ошибка соединения";
+      fileWarning.style.color = "var(--error-text)";
+    } finally {
+      uploadButton.disabled = false;
+    }
   });
 
   // ---- Отправка видео на ТВ ----
@@ -155,20 +356,19 @@
     const title = titleInput.value.trim() || "Видео";
 
     if (!url.startsWith("http://") && !url.startsWith("https://")) {
-      statusElement.textContent = "❌ Укажите HTTP или HTTPS ссылку";
+      statusElement.textContent = "❌ Вставьте HTTP или HTTPS ссылку";
       return;
     }
     if (!window.castContext) {
-      statusElement.textContent = "❌ Google Cast ещё не готов";
+      statusElement.textContent = "❌ Google Cast не готов";
       return;
     }
 
     let session = window.castContext.getCurrentSession();
     if (!session) {
-      // Пытаемся создать сессию автоматически
       try {
         session = await window.castContext.requestSession();
-      } catch (err) {
+      } catch {
         statusElement.textContent = "❌ Сначала нажмите 'Подключить ТВ'";
         return;
       }
@@ -193,7 +393,7 @@
     }
   });
 
-  // ---- Пауза ----
+  // ---- Пауза и стоп ----
   document.querySelector("#pauseButton").addEventListener("click", () => {
     const session = window.castContext?.getCurrentSession();
     if (session) {
@@ -201,8 +401,6 @@
       if (media) media.pause(null);
     }
   });
-
-  // ---- Остановка ----
   document.querySelector("#stopButton").addEventListener("click", () => {
     const session = window.castContext?.getCurrentSession();
     if (session) {
@@ -211,7 +409,7 @@
     }
   });
 
-  // ---- Предпросмотр при смене URL ----
+  // ---- Предпросмотр при изменении URL ----
   urlInput.addEventListener("change", () => {
     preview.src = urlInput.value;
   });
