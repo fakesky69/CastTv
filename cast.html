@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Видео на ТВ</title>
+
+  <!-- Инициализация Google Cast API -->
+  <script>
+    window.__onGCastApiAvailable = function (available) {
+      if (!available) {
+        document.querySelector("#status").textContent =
+          "Google Cast недоступен в этом браузере";
+        return;
+      }
+      const context = cast.framework.CastContext.getInstance();
+      context.setOptions({
+        receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+        autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+      });
+      window.castContext = context;
+      document.querySelector("#status").textContent =
+        "Готово. Нажмите кнопку Cast и выберите телевизор";
+    };
+  </script>
+  <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #101114;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+    main {
+      width: min(600px, 100%);
+      margin: auto;
+    }
+    h1 { margin-top: 0; }
+    input {
+      width: 100%;
+      padding: 14px;
+      margin: 8px 0;
+      border: 1px solid #444;
+      border-radius: 8px;
+      background: #1d1f24;
+      color: white;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 10px;
+      border: 0;
+      border-radius: 8px;
+      background: #2979ff;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:active { opacity: 0.75; }
+    google-cast-launcher {
+      display: block;
+      width: 52px;
+      height: 52px;
+      margin: 20px auto;
+    }
+    #status {
+      color: #aaa;
+      text-align: center;
+      line-height: 1.4;
+    }
+    video {
+      width: 100%;
+      margin-top: 20px;
+      border-radius: 8px;
+      background: black;
+    }
+  </style>
+</head>
+
+<body>
+<main>
+  <h1>Видео на телевизор</h1>
+
+  <!-- Кнопка Cast от Google -->
+  <google-cast-launcher></google-cast-launcher>
+
+  <p id="status">Загрузка Google Cast...</p>
+
+  <input
+    id="videoUrl"
+    type="url"
+    placeholder="https://example.com/video.mp4"
+    value="https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+  />
+
+  <input
+    id="videoTitle"
+    type="text"
+    placeholder="Название видео"
+    value="Моё видео"
+  />
+
+  <button id="playButton">▶ Запустить на ТВ</button>
+  <button id="pauseButton">⏸ Пауза</button>
+  <button id="stopButton">⏹ Остановить</button>
+
+  <!-- Локальный предпросмотр -->
+  <video id="preview" controls></video>
+</main>
+
+<script>
+  const statusElement = document.querySelector("#status");
+  const urlInput = document.querySelector("#videoUrl");
+  const titleInput = document.querySelector("#videoTitle");
+  const preview = document.querySelector("#preview");
+
+  // Отправка видео на ТВ
+  document.querySelector("#playButton").addEventListener("click", async () => {
+    const url = urlInput.value.trim();
+    const title = titleInput.value.trim() || "Видео";
+
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      statusElement.textContent = "Укажите HTTP или HTTPS ссылку";
+      return;
+    }
+    if (!window.castContext) {
+      statusElement.textContent = "Google Cast ещё не готов";
+      return;
+    }
+    const session = window.castContext.getCurrentSession();
+    if (!session) {
+      statusElement.textContent = "Сначала нажмите Cast и выберите телевизор";
+      return;
+    }
+
+    try {
+      const mediaInfo = new chrome.cast.media.MediaInfo(url, "video/mp4");
+      mediaInfo.streamType = chrome.cast.media.StreamType.BUFFERED;
+      const metadata = new chrome.cast.media.GenericMediaMetadata();
+      metadata.title = title;
+      mediaInfo.metadata = metadata;
+
+      const request = new chrome.cast.media.LoadRequest(mediaInfo);
+      request.autoplay = true;
+      request.currentTime = 0;
+
+      await session.loadMedia(request);
+      statusElement.textContent = "✅ Видео отправлено на телевизор";
+    } catch (error) {
+      console.error(error);
+      statusElement.textContent = "❌ Ошибка: " + error;
+    }
+  });
+
+  // Пауза
+  document.querySelector("#pauseButton").addEventListener("click", () => {
+    const session = window.castContext?.getCurrentSession();
+    session?.getMediaSession()?.pause(null);
+  });
+
+  // Остановка
+  document.querySelector("#stopButton").addEventListener("click", () => {
+    const session = window.castContext?.getCurrentSession();
+    session?.getMediaSession()?.stop(null);
+  });
+
+  // Предпросмотр в браузере при смене URL
+  urlInput.addEventListener("change", () => {
+    preview.src = urlInput.value;
+  });
+</script>
+</body>
+</html>
