@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="ru">
 <head>
@@ -213,11 +214,11 @@
   <p id="status">Загрузка Google Cast...</p>
 
   <div class="file-upload-wrapper">
-    <label for="fileInput">📁 Выберите видео с телефона</label>
+    <label for="fileInput">📁 Выберите видео (с телефона или компьютера)</label>
     <input type="file" id="fileInput" accept="video/*" />
   </div>
 
-  <!-- Выбор сервиса: основной теперь videovssylku -->
+  <!-- Выбор сервиса: основной videovssylku -->
   <div class="service-selector">
     <label for="serviceSelect">Сервис:</label>
     <select id="serviceSelect">
@@ -255,7 +256,7 @@
   const fileWarning = document.querySelector("#file-warning");
   const serviceSelect = document.querySelector("#serviceSelect");
 
-  // ---- Функция обновления подсказки о лимите (если файл не выбран) ----
+  // ---- Функция обновления подсказки о лимите ----
   function updateServiceHint() {
     const service = serviceSelect.value;
     let maxSize, serviceName, extra;
@@ -268,22 +269,17 @@
       serviceName = "tmpfiles.org";
       extra = "";
     }
-    // Если файл не выбран, обновляем предупреждение
     if (fileInput.files.length === 0) {
       fileWarning.textContent = `⚠️ Максимальный размер файла – ${maxSize} МБ${extra}`;
       fileWarning.style.color = "var(--warning-text)";
     }
-    // Если файл выбран, проверка уже работает и переопределит этот текст
   }
 
-  // ---- Обновление при загрузке и при смене сервиса ----
   window.addEventListener('load', updateServiceHint);
   serviceSelect.addEventListener('change', function() {
-    // Если файл выбран, перепроверяем его размер (функция сработает)
     if (fileInput.files.length > 0) {
       fileInput.dispatchEvent(new Event('change'));
     } else {
-      // Иначе просто обновляем подсказку
       updateServiceHint();
     }
   });
@@ -325,12 +321,12 @@
     const file = this.files[0];
     if (!file) {
       uploadButton.disabled = true;
-      updateServiceHint(); // восстановить подсказку
+      updateServiceHint();
       return;
     }
     const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
     const service = serviceSelect.value;
-    let maxSize = 500; // по умолчанию videovssylku
+    let maxSize = 500;
     let serviceName = "videovssylku.ru";
     if (service === "tmpfiles") {
       maxSize = 100;
@@ -372,7 +368,6 @@
       let fileUrl = null;
 
       if (service === "tmpfiles") {
-        // ---- Загрузка через tmpfiles.org ----
         const formData = new FormData();
         formData.append("file", file);
         const response = await fetch("https://tmpfiles.org/api/v1/upload", {
@@ -386,7 +381,6 @@
           throw new Error(data.message || "Ошибка загрузки");
         }
       } else if (service === "videovssylku") {
-        // ---- Загрузка через videovssylku.ru (Chevereto API) ----
         const formData = new FormData();
         formData.append("source", file);
         const response = await fetch("https://videovssylku.ru/api/1/upload", {
