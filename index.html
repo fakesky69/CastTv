@@ -20,7 +20,7 @@
       });
       window.castContext = context;
       document.querySelector("#status").textContent =
-        "Готово. Нажмите кнопку Cast и выберите телевизор";
+        "Готово. Нажмите кнопку 'Подключить ТВ' и выберите телевизор";
     };
   </script>
   <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
@@ -61,12 +61,20 @@
       cursor: pointer;
     }
     button:active { opacity: 0.75; }
-    google-cast-launcher {
-      display: block;
-      width: 52px;
-      height: 52px;
-      margin: 20px auto;
+
+    /* Кастомная кнопка Cast – большая и заметная */
+    #myCastButton {
+      background: #4285f4;
+      font-weight: bold;
+      letter-spacing: 0.5px;
     }
+    #myCastButton:active { background: #3367d6; }
+
+    /* Стандартная кнопка скрыта – используем кастомную */
+    google-cast-launcher {
+      display: none;
+    }
+
     #status {
       color: #aaa;
       text-align: center;
@@ -85,8 +93,8 @@
 <main>
   <h1>Видео на телевизор</h1>
 
-  <!-- Кнопка Cast от Google -->
-  <google-cast-launcher></google-cast-launcher>
+  <!-- Кастомная кнопка Cast вместо стандартной -->
+  <button id="myCastButton">📺 Подключить ТВ</button>
 
   <p id="status">Загрузка Google Cast...</p>
 
@@ -118,23 +126,52 @@
   const titleInput = document.querySelector("#videoTitle");
   const preview = document.querySelector("#preview");
 
-  // Отправка видео на ТВ
+  // ---- Кастомная кнопка подключения к ТВ ----
+  document.getElementById("myCastButton").addEventListener("click", function() {
+    if (!window.castContext) {
+      statusElement.textContent = "❌ Google Cast ещё не загружен, подождите...";
+      return;
+    }
+    // Если уже есть сессия – используем её, иначе запрашиваем новую
+    let session = window.castContext.getCurrentSession();
+    if (session) {
+      statusElement.textContent = "✅ ТВ уже подключён";
+      return;
+    }
+    window.castContext.requestSession()
+      .then(session => {
+        statusElement.textContent = "✅ Телевизор подключён! Теперь отправляйте видео.";
+        console.log("Сессия создана", session);
+      })
+      .catch(err => {
+        statusElement.textContent = "❌ Ошибка подключения: " + err;
+        console.error(err);
+      });
+  });
+
+  // ---- Отправка видео на ТВ ----
   document.querySelector("#playButton").addEventListener("click", async () => {
     const url = urlInput.value.trim();
     const title = titleInput.value.trim() || "Видео";
 
     if (!url.startsWith("http://") && !url.startsWith("https://")) {
-      statusElement.textContent = "Укажите HTTP или HTTPS ссылку";
+      statusElement.textContent = "❌ Укажите HTTP или HTTPS ссылку";
       return;
     }
     if (!window.castContext) {
-      statusElement.textContent = "Google Cast ещё не готов";
+      statusElement.textContent = "❌ Google Cast ещё не готов";
       return;
     }
-    const session = window.castContext.getCurrentSession();
+
+    let session = window.castContext.getCurrentSession();
     if (!session) {
-      statusElement.textContent = "Сначала нажмите Cast и выберите телевизор";
-      return;
+      // Пытаемся создать сессию автоматически
+      try {
+        session = await window.castContext.requestSession();
+      } catch (err) {
+        statusElement.textContent = "❌ Сначала нажмите 'Подключить ТВ'";
+        return;
+      }
     }
 
     try {
@@ -152,23 +189,29 @@
       statusElement.textContent = "✅ Видео отправлено на телевизор";
     } catch (error) {
       console.error(error);
-      statusElement.textContent = "❌ Ошибка: " + error;
+      statusElement.textContent = "❌ Ошибка отправки: " + error;
     }
   });
 
-  // Пауза
+  // ---- Пауза ----
   document.querySelector("#pauseButton").addEventListener("click", () => {
     const session = window.castContext?.getCurrentSession();
-    session?.getMediaSession()?.pause(null);
+    if (session) {
+      const media = session.getMediaSession();
+      if (media) media.pause(null);
+    }
   });
 
-  // Остановка
+  // ---- Остановка ----
   document.querySelector("#stopButton").addEventListener("click", () => {
     const session = window.castContext?.getCurrentSession();
-    session?.getMediaSession()?.stop(null);
+    if (session) {
+      const media = session.getMediaSession();
+      if (media) media.stop(null);
+    }
   });
 
-  // Предпросмотр в браузере при смене URL
+  // ---- Предпросмотр при смене URL ----
   urlInput.addEventListener("change", () => {
     preview.src = urlInput.value;
   });
