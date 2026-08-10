@@ -81,7 +81,7 @@
       margin: auto;
     }
     h1 { margin-top: 0; }
-    input, button, .file-upload-wrapper {
+    input, button, .file-upload-wrapper, select {
       width: 100%;
       padding: 14px;
       margin: 8px 0;
@@ -91,6 +91,14 @@
       color: var(--text);
       font-size: 16px;
       transition: background 0.2s, border 0.2s, color 0.2s;
+    }
+    select {
+      appearance: auto;
+      cursor: pointer;
+    }
+    select option {
+      background: var(--input-bg);
+      color: var(--text);
     }
     button {
       background: var(--btn-primary);
@@ -167,6 +175,27 @@
       text-align: center;
       margin-top: 4px;
     }
+    .url-hint {
+      font-size: 13px;
+      color: #ffaa00;
+      text-align: center;
+      margin-top: -4px;
+      margin-bottom: 8px;
+    }
+    .service-selector {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin: 8px 0;
+    }
+    .service-selector label {
+      white-space: nowrap;
+      font-size: 14px;
+    }
+    .service-selector select {
+      flex: 1;
+      margin: 0;
+    }
   </style>
 </head>
 
@@ -184,26 +213,30 @@
   <p id="status">Загрузка Google Cast...</p>
 
   <div class="file-upload-wrapper">
-    <label for="fileInput">📁 Выберите видео с телефона (до 100 МБ)</label>
+    <label for="fileInput">📁 Выберите видео с телефона</label>
     <input type="file" id="fileInput" accept="video/*" />
   </div>
-  <div id="file-warning">⚠️ Максимальный размер файла – 100 МБ (сервис tmpfiles.org)</div>
+
+  <!-- Выбор сервиса: основной теперь videovssylku -->
+  <div class="service-selector">
+    <label for="serviceSelect">Сервис:</label>
+    <select id="serviceSelect">
+      <option value="videovssylku" selected>⭐ videovssylku.ru (до 500 МБ, 10 дней)</option>
+      <option value="tmpfiles">tmpfiles.org (до 100 МБ)</option>
+    </select>
+  </div>
+
+  <div id="file-warning">⚠️ Максимальный размер файла – 500 МБ (видео хранятся 10 дней)</div>
   <button id="uploadButton" disabled>⬆ Загрузить и получить ссылку</button>
 
   <input
     id="videoUrl"
     type="url"
-    placeholder="Сюда подставится ссылка после загрузки"
+    placeholder="Вставьте прямую ссылку на MP4"
     value=""
   />
+  <div class="url-hint">⚠️ Поддерживаются только прямые ссылки на MP4-файлы. YouTube и другие сайты не поддерживаются.</div>
   <div class="manual-link-hint">💡 Можно вставить ссылку вручную (например, из Google Диска)</div>
-
-  <input
-    id="videoTitle"
-    type="text"
-    placeholder="Название видео"
-    value="Моё видео"
-  />
 
   <button id="playButton">▶ Запустить на ТВ</button>
   <button id="pauseButton">⏸ Пауза</button>
@@ -216,11 +249,44 @@
   // ---- DOM ----
   const statusElement = document.querySelector("#status");
   const urlInput = document.querySelector("#videoUrl");
-  const titleInput = document.querySelector("#videoTitle");
   const preview = document.querySelector("#preview");
   const fileInput = document.querySelector("#fileInput");
   const uploadButton = document.querySelector("#uploadButton");
   const fileWarning = document.querySelector("#file-warning");
+  const serviceSelect = document.querySelector("#serviceSelect");
+
+  // ---- Функция обновления подсказки о лимите (если файл не выбран) ----
+  function updateServiceHint() {
+    const service = serviceSelect.value;
+    let maxSize, serviceName, extra;
+    if (service === "videovssylku") {
+      maxSize = 500;
+      serviceName = "videovssylku.ru";
+      extra = " (видео хранятся 10 дней)";
+    } else {
+      maxSize = 100;
+      serviceName = "tmpfiles.org";
+      extra = "";
+    }
+    // Если файл не выбран, обновляем предупреждение
+    if (fileInput.files.length === 0) {
+      fileWarning.textContent = `⚠️ Максимальный размер файла – ${maxSize} МБ${extra}`;
+      fileWarning.style.color = "var(--warning-text)";
+    }
+    // Если файл выбран, проверка уже работает и переопределит этот текст
+  }
+
+  // ---- Обновление при загрузке и при смене сервиса ----
+  window.addEventListener('load', updateServiceHint);
+  serviceSelect.addEventListener('change', function() {
+    // Если файл выбран, перепроверяем его размер (функция сработает)
+    if (fileInput.files.length > 0) {
+      fileInput.dispatchEvent(new Event('change'));
+    } else {
+      // Иначе просто обновляем подсказку
+      updateServiceHint();
+    }
+  });
 
   // ---- Темы ----
   const themeButtons = document.querySelectorAll(".theme-switcher button");
@@ -259,16 +325,22 @@
     const file = this.files[0];
     if (!file) {
       uploadButton.disabled = true;
-      fileWarning.textContent = "⚠️ Максимальный размер файла – 100 МБ (сервис tmpfiles.org)";
-      fileWarning.style.color = "var(--warning-text)";
+      updateServiceHint(); // восстановить подсказку
       return;
     }
     const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-    if (file.size > 100 * 1024 * 1024) {
-      fileWarning.textContent = `❌ Файл слишком большой (${sizeMB} МБ). Максимум – 100 МБ.`;
+    const service = serviceSelect.value;
+    let maxSize = 500; // по умолчанию videovssylku
+    let serviceName = "videovssylku.ru";
+    if (service === "tmpfiles") {
+      maxSize = 100;
+      serviceName = "tmpfiles.org";
+    }
+    if (file.size > maxSize * 1024 * 1024) {
+      fileWarning.textContent = `❌ Файл слишком большой (${sizeMB} МБ). Максимум для ${serviceName} – ${maxSize} МБ.`;
       fileWarning.style.color = "var(--error-text)";
       uploadButton.disabled = true;
-      statusElement.textContent = "❌ Превышен лимит 100 МБ";
+      statusElement.textContent = `❌ Превышен лимит ${maxSize} МБ`;
     } else {
       fileWarning.textContent = `✅ Файл выбран (${sizeMB} МБ). Нажмите «Загрузить».`;
       fileWarning.style.color = "var(--success-text)";
@@ -277,15 +349,19 @@
     }
   });
 
-  // ---- Загрузка через tmpfiles.org ----
+  // ---- Загрузка файла ----
   uploadButton.addEventListener("click", async () => {
     const file = fileInput.files[0];
     if (!file) {
       statusElement.textContent = "❌ Сначала выберите файл";
       return;
     }
-    if (file.size > 100 * 1024 * 1024) {
-      statusElement.textContent = "❌ Файл превышает 100 МБ";
+
+    const service = serviceSelect.value;
+    let maxSize = 500;
+    if (service === "tmpfiles") maxSize = 100;
+    if (file.size > maxSize * 1024 * 1024) {
+      statusElement.textContent = `❌ Файл превышает ${maxSize} МБ`;
       return;
     }
 
@@ -293,26 +369,49 @@
     uploadButton.disabled = true;
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      let fileUrl = null;
 
-      const response = await fetch("https://tmpfiles.org/api/v1/upload", {
-        method: "POST",
-        body: formData
-      });
+      if (service === "tmpfiles") {
+        // ---- Загрузка через tmpfiles.org ----
+        const formData = new FormData();
+        formData.append("file", file);
+        const response = await fetch("https://tmpfiles.org/api/v1/upload", {
+          method: "POST",
+          body: formData
+        });
+        const data = await response.json();
+        if (data.success) {
+          fileUrl = data.url;
+        } else {
+          throw new Error(data.message || "Ошибка загрузки");
+        }
+      } else if (service === "videovssylku") {
+        // ---- Загрузка через videovssylku.ru (Chevereto API) ----
+        const formData = new FormData();
+        formData.append("source", file);
+        const response = await fetch("https://videovssylku.ru/api/1/upload", {
+          method: "POST",
+          body: formData
+        });
+        const data = await response.json();
+        console.log("Ответ videovssylku:", data);
+        if (data.status === 200 && data.image && data.image.url) {
+          fileUrl = data.image.url;
+        } else if (data.status === 200 && data.url) {
+          fileUrl = data.url;
+        } else {
+          throw new Error(data.message || data.error || "Неизвестная ошибка");
+        }
+      }
 
-      const data = await response.json();
-
-      if (data.success) {
-        // Прямая ссылка на файл
-        const fileUrl = data.url; // Пример: https://tmpfiles.org/dl/12345/filename.mp4
+      if (fileUrl) {
         urlInput.value = fileUrl;
         statusElement.textContent = "✅ Файл загружен! Ссылка вставлена.";
         preview.src = fileUrl;
         fileWarning.textContent = "✅ Готово! Можно отправлять на ТВ.";
         fileWarning.style.color = "var(--success-text)";
       } else {
-        throw new Error(data.message || "Неизвестная ошибка загрузки");
+        throw new Error("Не удалось получить ссылку");
       }
     } catch (error) {
       console.error(error);
@@ -327,7 +426,7 @@
   // ---- Отправка видео на ТВ ----
   document.querySelector("#playButton").addEventListener("click", async () => {
     const url = urlInput.value.trim();
-    const title = titleInput.value.trim() || "Видео";
+    const title = "Видео";
 
     if (!url.startsWith("http://") && !url.startsWith("https://")) {
       statusElement.textContent = "❌ Вставьте HTTP или HTTPS ссылку";
